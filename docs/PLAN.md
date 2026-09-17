@@ -10,12 +10,18 @@
 |---|---|---|---|
 | **M0** | Skeleton | Project runs, empty meadow renders | ✅ **Done** |
 | **A** | Hero assets | Bee, 3 enemies, spider, 4 flowers | ✅ **Done** |
-| **M1** | **Flight** | Piloting the bee is fun. **Gate for the whole project** | Next |
-| **M2** | Foraging loop | Forage → carry → deposit → score | Not started |
-| **M3** | Threat | One bird, one hornet. Risk is real | Not started |
-| **M4** | Progression | Skill tree, roles, save, sessions | Not started |
+| **M1** | Flight | Piloting the bee is fun. The project gate | ✅ **Done, playtested** |
+| **M2** | Foraging loop | Forage → carry → deposit → score | ✅ **Done, unverified** |
+| **M3** | Threat | Bird, hornet, wasp swarm | ✅ **Done, unverified** |
+| **M4** | Progression | Skill tree, roles, save, sessions | Next |
 | **M5** | Co-op | Second bee in the same hive | Deferred by design |
 | — | Biomes (Forest/Desert/Beach) | Each is a full art + balance pass | Deferred — see Risks |
+
+**M2 and M3 are marked "unverified" on purpose.** They are implemented, lint-clean and
+covered by 62 tests, but **nobody has played them yet**. Tests confirm the systems behave as
+specified; they cannot confirm the loop is fun or that the difficulty curve is right. The
+first flight playtest produced three tuning fixes from a system that already passed 42 tests,
+so expect the same here.
 
 **Workstream A** (hero assets) ran ahead of M1 deliberately: it is independent of the flight
 code, it was the cheapest time to do it, and M1 plays better with a real bee than with a
@@ -74,7 +80,7 @@ place *before* there is any code to violate them.
 
 ---
 
-## M1 — Flight (project gate) — **in progress**
+## M1 — Flight (project gate) — ✅ **done and playtested**
 
 **Goal**: answer one question. **"Is piloting this bee fun?"**
 
