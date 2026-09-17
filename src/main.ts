@@ -19,8 +19,10 @@ import { InputManager } from "./input/InputManager";
 import {
   loadProgression,
   loadRecords,
+  loadSettings,
   mergeSession,
   saveProgression,
+  saveSettings,
   type Progression,
   type Records,
 } from "./progression/save";
@@ -46,6 +48,8 @@ import { createWorld } from "./sim/world";
 import { Hud } from "./ui/hud";
 import { FlashOverlay, installFlashStyles } from "./ui/flash";
 import { ResultsScreen, installResultsStyles } from "./ui/results";
+import { SettingsPanel } from "./ui/settingsPanel";
+import { installSettingsStyles } from "./ui/settingsStyles";
 import { TreePanel, installTreePanelStyles } from "./ui/treePanel";
 
 const canvas = document.getElementById("app");
@@ -160,6 +164,7 @@ followCamera.reset(renderBee);
 installTreePanelStyles();
 installResultsStyles();
 installFlashStyles();
+installSettingsStyles();
 
 const flash = new FlashOverlay(document.body);
 
@@ -205,6 +210,23 @@ document.addEventListener("visibilitychange", () => {
 const input = new InputManager(canvas);
 input.attach();
 
+// Settings live under their own storage key, so a corrupt save can never cost the player their
+// keybindings (see progression/save.ts).
+const settings = loadSettings();
+if (settings.bindings) input.restoreBindings(settings.bindings);
+input.setScheme(settings.scheme);
+
+const settingsPanel = new SettingsPanel(document.body, input, {
+  onBindingsChanged: () => {
+    settings.bindings = input.snapshotBindings();
+    saveSettings(settings);
+  },
+  onSchemeChanged: (scheme) => {
+    settings.scheme = scheme;
+    saveSettings(settings);
+  },
+});
+
 let command = neutralCommand();
 
 window.addEventListener("keydown", (event) => {
@@ -219,9 +241,15 @@ window.addEventListener("keydown", (event) => {
     return;
   }
 
+  if (event.code === "KeyO") {
+    settingsPanel.toggle();
+    return;
+  }
+
   if (event.code === "Escape") {
-    if (treePanel.isOpen) treePanel.close();
-    if (resultsScreen.isOpen) resultsScreen.close();
+    if (settingsPanel.isOpen) settingsPanel.close();
+    else if (treePanel.isOpen) treePanel.close();
+    else if (resultsScreen.isOpen) resultsScreen.close();
     return;
   }
 
@@ -230,7 +258,7 @@ window.addEventListener("keydown", (event) => {
     return;
   }
 
-  if (treePanel.isOpen || resultsScreen.isOpen) return;
+  if (treePanel.isOpen || resultsScreen.isOpen || settingsPanel.isOpen) return;
 
   if (event.code === "KeyR") {
     respawn();
@@ -359,7 +387,7 @@ renderer.setAnimationLoop((time: number) => {
   const frameSeconds = Math.min((time - previousTime) / 1000, 0.1);
   previousTime = time;
 
-  const paused = treePanel.isOpen || resultsScreen.isOpen;
+  const paused = treePanel.isOpen || resultsScreen.isOpen || settingsPanel.isOpen;
   command = paused ? neutralCommand() : input.sample(frameSeconds);
 
   loop.advance(frameSeconds);
@@ -447,7 +475,7 @@ const THREAT_LABELS: Record<Enemy["kind"], string> = {
 /** Feed the audio engine the continuous state it needs. One-shots come from events. */
 function updateAudio(): void {
   const bee = state.bee;
-  const paused = treePanel.isOpen || resultsScreen.isOpen;
+  const paused = treePanel.isOpen || resultsScreen.isOpen || settingsPanel.isOpen;
 
   if (paused) {
     audio.silence();
