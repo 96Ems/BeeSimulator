@@ -40,6 +40,10 @@ export type HudInfo = {
   threatDistance: number | null;
   threatLabel: string | null;
 
+  /** Spendable pollen, and the emergent role label. */
+  banked: number;
+  roleLabel: string;
+
   scheme: string;
   pointerLocked: boolean;
 };
@@ -66,7 +70,7 @@ export class Hud {
         `${info.stabilized ? "AUTO (level)" : "manual"}`,
       ``,
       `Z/S pitch    Q/D roll    I/K climb    J/L yaw`,
-      `SPACE sting   M scheme (${info.scheme})   R respawn`,
+      `SPACE sting   T hive panel   M scheme (${info.scheme})   R respawn`,
     ];
 
     if (info.scheme === "mouse" && !info.pointerLocked) {
@@ -92,8 +96,12 @@ function forage(info: HudInfo): string {
 
 /** The nearest threat: the most decision-relevant number on the screen. */
 function sky(info: HudInfo): string {
-  if (info.threatDistance === null || info.threatLabel === null) return `SKY    clear`;
-  return `SKY    ${info.threatLabel} at ${info.threatDistance.toFixed(0)} m`;
+  const line =
+    info.threatDistance === null || info.threatLabel === null
+      ? `SKY    clear`
+      : `SKY    ${info.threatLabel} at ${info.threatDistance.toFixed(0)} m`;
+
+  return line + `    BANK ${Math.floor(info.banked)}    ${info.roleLabel}`;
 }
 
 function formatClock(seconds: number): string {

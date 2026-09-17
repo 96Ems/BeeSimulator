@@ -6,12 +6,25 @@
  *
  *     input  ->  InputCommand  ->  sim.step()  ->  SimState  ->  render
  *
- * The only module aware of all three is this one.
+ * The only module aware of all three is this one. Progression sits alongside: it *reads* the
+ * simulation (through events) and *writes* only the bee's stat block, never the world.
  */
 
-import { FLIGHT, HIVE, SESSION } from "./data/tuning";
+import { BEE, FLIGHT, HIVE, SESSION } from "./data/tuning";
+import { ENEMIES } from "./data/enemies";
+import { createSessionStats, onDeposit, onHit, pollenPerMinute, resetSession } from "./game/Session";
 import { FixedStepLoop } from "./game/Loop";
 import { InputManager } from "./input/InputManager";
+import {
+  loadProgression,
+  loadRecords,
+  mergeSession,
+  saveProgression,
+  type Progression,
+  type Records,
+} from "./progression/save";
+import { computeRole } from "./progression/role";
+import { foldInvestment } from "./progression/tree";
 import { FollowCamera } from "./render/Camera";
 import { createRenderer } from "./render/Renderer";
 import { createSceneBundle } from "./render/Scene";
@@ -26,10 +39,12 @@ import type { Enemy } from "./sim/entities/enemies";
 import type { SimEvent } from "./sim/events";
 import { FLIGHT_STEP } from "./sim/flight";
 import { createRng } from "./sim/rng";
-import { copyBee, createBee, createInitialState } from "./sim/State";
+import { applyStats, copyBee, createBee, createInitialState } from "./sim/State";
 import { step } from "./sim/step";
 import { createWorld } from "./sim/world";
 import { Hud } from "./ui/hud";
+import { ResultsScreen, installResultsStyles } from "./ui/results";
+import { TreePanel, installTreePanelStyles } from "./ui/treePanel";
 
 const canvas = document.getElementById("app");
 if (!(canvas instanceof HTMLCanvasElement)) throw new Error("#app canvas is missing");
@@ -38,6 +53,25 @@ const hudElement = document.getElementById("debug");
 if (!hudElement) throw new Error("#debug element is missing");
 
 const hud = new Hud(hudElement);
+
+// ── progression ──────────────────────────────────────────────────────────────────
+
+const progression: Progression = loadProgression();
+let records: Records = loadRecords();
+
+/** The folded skill tree. Recomputed only when the investment changes. */
+let stats = buildStats();
+
+function buildStats(): ReturnType<typeof foldInvestment> {
+  return foldInvestment(
+    {
+      pollenCapacity: BEE.basePollenCapacity,
+      maxLives: 3,
+      stingReach: ENEMIES.stingReach,
+    },
+    progression.investment,
+  );
+}
 
 // ── rendering ────────────────────────────────────────────────────────────────────
 
@@ -59,21 +93,25 @@ state.enemies = createEnemies(rng);
 /** Pre-step snapshot, so the renderer can interpolate between two simulation states. */
 const previousBee = createBee();
 
-function respawn(): void {
+const session = createSessionStats();
+
+function respawn(atHive = true): void {
   const bee = state.bee;
-  bee.position.x = HIVE.position.x;
-  bee.position.y = HIVE.spawnAltitude;
-  bee.position.z = HIVE.position.z + HIVE.spawnRadius;
+
+  if (atHive) {
+    bee.position.x = HIVE.position.x;
+    bee.position.y = HIVE.spawnAltitude;
+    bee.position.z = HIVE.position.z + HIVE.spawnRadius;
+
+    // Facing away from the hive, out over the meadow: the direction play should start in.
+    bee.attitude.yaw = Math.PI;
+  }
 
   bee.velocity.x = 0;
   bee.velocity.y = 0;
   bee.velocity.z = 0;
-
-  // Facing away from the hive, out over the meadow — the direction play should start in.
-  bee.attitude.yaw = Math.PI;
   bee.attitude.pitch = 0;
   bee.attitude.roll = 0;
-
   bee.angular.yaw = 0;
   bee.angular.pitch = 0;
   bee.angular.roll = 0;
@@ -81,20 +119,19 @@ function respawn(): void {
   bee.foragingFlowerId = null;
   bee.forageProgress = 0;
 
+  // Skill tree effects are baked in on respawn rather than every step, so the hot path reads
+  // only the bee and an upgrade lands when the player is back at the hive - which is where
+  // they earn it anyway.
+  applyStats(bee, stats);
+  bee.lives = bee.maxLives;
+  bee.pollen = 0;
+
   copyBee(bee, previousBee);
 }
 
+// `respawn` deliberately does not touch the camera: it is called before the camera exists
+// (initial spawn) and from the results screen. Callers that can reset the camera do so.
 respawn();
-
-// Session accounting. Kept outside `SimState` because it is derived from a stream of events
-// rather than simulated — the simulation does not need to know that a score exists.
-const session = {
-  elapsed: 0,
-  deposited: 0,
-  trips: 0,
-  bestTrip: 0,
-  tripStart: 0,
-};
 
 // ── models ───────────────────────────────────────────────────────────────────────
 
@@ -116,6 +153,27 @@ const followCamera = new FollowCamera(window.innerWidth / window.innerHeight);
 followCamera.setAspect(window.innerWidth / window.innerHeight);
 followCamera.reset(renderBee);
 
+// ── ui ───────────────────────────────────────────────────────────────────────────
+
+installTreePanelStyles();
+installResultsStyles();
+
+const treePanel = new TreePanel(document.body, {
+  onPurchase: (nodeId, cost) => {
+    progression.pollen -= cost;
+    progression.investment[nodeId] = (progression.investment[nodeId] ?? 0) + 1;
+
+    // Persist immediately. A player who invests and then closes the tab must not lose the
+    // spend, and there is no other save point inside the panel.
+    saveProgression(progression);
+    stats = buildStats();
+    treePanel.setState(progression.investment, progression.pollen);
+    applyStats(state.bee, stats);
+  },
+});
+
+const resultsScreen = new ResultsScreen(document.body);
+
 // ── input ────────────────────────────────────────────────────────────────────────
 
 const input = new InputManager(canvas);
@@ -123,11 +181,30 @@ input.attach();
 
 let command = neutralCommand();
 
-// Developer hotkeys are handled as events rather than through the binding table. They are
-// conveniences, not player actions: routing them through the bindings would clutter the
-// rebinding menu with keys nobody wants to remap, and would let a player unbind respawn.
 window.addEventListener("keydown", (event) => {
   if (event.repeat) return;
+
+  // Developer and menu hotkeys are handled as events rather than through the binding table:
+  // routing them through bindings would clutter the rebinding menu with keys nobody wants to
+  // remap, and would let a player unbind respawn.
+  if (event.code === "KeyT") {
+    treePanel.toggle(progression.investment, progression.pollen);
+    if (treePanel.isOpen) input.releaseAll();
+    return;
+  }
+
+  if (event.code === "Escape") {
+    if (treePanel.isOpen) treePanel.close();
+    if (resultsScreen.isOpen) resultsScreen.close();
+    return;
+  }
+
+  if (event.code === "Enter" && resultsScreen.isOpen) {
+    endSession();
+    return;
+  }
+
+  if (treePanel.isOpen || resultsScreen.isOpen) return;
 
   if (event.code === "KeyR") {
     respawn();
@@ -137,12 +214,28 @@ window.addEventListener("keydown", (event) => {
   }
 });
 
+/** Reset for a fresh five minutes, keeping progression. */
+function endSession(): void {
+  resultsScreen.close();
+  resetSession(session);
+
+  for (const flower of state.flowers) {
+    flower.richness = 1;
+    flower.respawnTimer = 0;
+  }
+
+  respawn();
+  followCamera.reset(renderBee);
+}
+
 // ── loop ─────────────────────────────────────────────────────────────────────────
 
 /** Reused so the per-step event collection allocates nothing. */
 const events: SimEvent[] = [];
 
 const loop = new FixedStepLoop(FLIGHT_STEP, (dt) => {
+  if (session.over) return;
+
   // Snapshot *before* stepping. With several steps in one frame this ends up holding the
   // state before the last step, which is exactly the pair the renderer interpolates between.
   copyBee(state.bee, previousBee);
@@ -150,27 +243,65 @@ const loop = new FixedStepLoop(FLIGHT_STEP, (dt) => {
   events.length = 0;
   step(state, command, dt, events);
   consume(events);
+
   session.elapsed += dt;
+  if (session.elapsed >= SESSION.durationSeconds) finish();
 });
 
 function consume(list: readonly SimEvent[]): void {
+  let banked = 0;
+
   for (const event of list) {
     switch (event.kind) {
-      case "deposited": {
-        session.deposited += event.pollen;
-        session.trips += 1;
-        session.bestTrip = Math.max(session.bestTrip, event.pollen);
-        session.tripStart = session.elapsed;
+      case "deposited":
+        onDeposit(session, event.pollen);
+        // Deposited pollen is the spendable currency. Banked immediately so a crash mid-session
+        // cannot lose it.
+        progression.pollen += event.pollen;
+        progression.lifetime += event.pollen;
+        banked += event.pollen;
         break;
-      }
-      case "completed":
-      case "enemyKilled":
-      case "enemyRepelled":
+      case "beeHit":
+        onHit(session);
         break;
       default:
         break;
     }
   }
+
+  if (banked > 0) saveProgression(progression);
+}
+
+function finish(): void {
+  session.over = true;
+
+  const summary = {
+    deposited: session.deposited,
+    bestTrip: session.bestTrip,
+    pollenPerMinute: pollenPerMinute(session),
+    trips: session.trips,
+    hitsTaken: session.hitsTaken,
+  };
+
+  const newRecords: string[] = [];
+  if (summary.bestTrip > records.bestTrip) newRecords.push("best trip");
+  if (summary.deposited > records.bestSession) newRecords.push("best session");
+  if (summary.pollenPerMinute > records.bestPollenPerMinute) newRecords.push("pollen/minute");
+
+  const before = { ...records };
+  records = mergeSession(records, summary);
+  saveProgression(progression);
+
+  resultsScreen.show({
+    ...summary,
+    cleanTrips: session.cleanTrips,
+    bestPollenPerMinute: before.bestPollenPerMinute,
+    bestSession: before.bestSession,
+    pollenBanked: progression.pollen,
+    newRecords,
+  });
+
+  input.releaseAll();
 }
 
 function resize(): void {
@@ -190,12 +321,13 @@ let smoothedFps = 60;
 let hudAccumulator = 0;
 
 renderer.setAnimationLoop((time: number) => {
-  // Clamp the frame delta: a backgrounded tab or a breakpoint can produce a delta of seconds,
+  // Clamp the frame delta: a backgrounded tab or a breakpoint can produce seconds of delta,
   // and the loop's catch-up cap handles what is left.
   const frameSeconds = Math.min((time - previousTime) / 1000, 0.1);
   previousTime = time;
 
-  command = input.sample(frameSeconds);
+  const paused = treePanel.isOpen || resultsScreen.isOpen;
+  command = paused ? neutralCommand() : input.sample(frameSeconds);
 
   loop.advance(frameSeconds);
 
@@ -216,7 +348,7 @@ renderer.setAnimationLoop((time: number) => {
   smoothedFps += (instantFps - smoothedFps) * 0.1;
   hudAccumulator += frameSeconds;
 
-  if (hudAccumulator >= 0.2) {
+  if (hudAccumulator >= 0.2 && !paused) {
     hudAccumulator = 0;
     updateHud();
   }
@@ -225,7 +357,7 @@ renderer.setAnimationLoop((time: number) => {
 function updateHud(): void {
   const bee = state.bee;
   const nearest = nearestThreat(state.enemies, bee.position);
-  const elapsedMinutes = Math.max(session.elapsed, 1) / 60;
+  const role = computeRole(progression.investment);
 
   hud.update({
     fps: smoothedFps,
@@ -251,10 +383,13 @@ function updateHud(): void {
     timeLeft: Math.max(0, SESSION.durationSeconds - session.elapsed),
     deposited: session.deposited,
     trips: session.trips,
-    pollenPerMinute: session.deposited / elapsedMinutes,
+    pollenPerMinute: pollenPerMinute(session),
 
     threatDistance: nearest?.distance ?? null,
     threatLabel: nearest?.label ?? null,
+
+    banked: progression.pollen,
+    roleLabel: role.label,
 
     scheme: input.currentScheme,
     pointerLocked: input.isPointerLocked,
