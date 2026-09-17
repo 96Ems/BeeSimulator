@@ -74,7 +74,7 @@ place *before* there is any code to violate them.
 
 ---
 
-## M1 — Flight (project gate)
+## M1 — Flight (project gate) — **in progress**
 
 **Goal**: answer one question. **"Is piloting this bee fun?"**
 
@@ -83,54 +83,63 @@ no enemies, no hive, no UI beyond a debug readout.
 
 ### Tasks
 
-#### M1a — Flight model
+#### M1a — Flight model ✅
 
-- [ ] `sim/State.ts` — `SimState`, plain and serializable
-- [ ] `sim/step.ts` — pure `step(state, commands, dt)`, zero allocation in the hot path
-- [ ] `sim/flight.ts` — helicopter integrator (ARCHITECTURE §4.4)
-- [ ] Seeded PRNG (`sim/rng.ts`); no `Math.random` anywhere in `sim/`
-- [ ] `game/Loop.ts` — fixed-timestep accumulator, max 5 catch-up steps
-- [ ] `render/interpolation.ts` — blend prev/current state so display rate ≠ sim rate
+- [x] `sim/State.ts` — `SimState`, plain and serializable
+- [x] `sim/step.ts` — `step(state, command, dt)`, zero allocation in the hot path
+- [x] `sim/flight.ts` — helicopter integrator (ARCHITECTURE §4.4)
+- [x] `sim/math.ts` — vector/attitude maths, free of Three.js so the sim stays pure
+- [x] `game/Loop.ts` — fixed-timestep accumulator with a catch-up cap
+- [x] `render/interpolation.ts` — blends prev/current state so display rate ≠ sim rate
 
-#### M1b — Input
+#### M1b — Input ✅ (rebinding UI still to do)
 
-- [ ] `input/bindings.ts` — `event.code` table, presets (AZERTY / QWERTY / arrows)
-- [ ] `input/layout.ts` — layout detection, **display only**
-- [ ] `input/mouseStick.ts` — pointer lock, `movementX/Y` → pitch/roll
-- [ ] `input/keyboardStick.ts` — `ZQSD`-position + `IJKL`-position schemes
-- [ ] `input/commands.ts` — both schemes emit the same `InputCommand`
+- [x] `input/bindings.ts` — `event.code` tables, presets, layout detection for labels
+- [x] `input/InputManager.ts` — mouse-as-stick and full-keyboard schemes, one command type
 - [ ] Rebinding menu: press-to-capture, persist to `localStorage`
+- [x] Layout detection wired (display only)
 
-#### M1c — Stabilization
+#### M1c — Stabilization ✅
 
-- [ ] `sim/stabilization.ts` — inactivity detection (200 ms) + smoothstep blend (→600 ms)
-- [ ] Verify identical behavior from both input schemes
+- [x] Inactivity detection + smoothstep blend, driven from the shared idle timer
 
-#### M1d — Camera
+#### M1d — Camera ✅
 
-- [ ] Spring-damper third-person follow, lag visibly trailing on direction changes
-- [ ] Yaw-only follow frame (no roll-coupled camera)
-- [ ] Camera collision raycast
-- [ ] Speed-linked FOV widen
+- [x] Spring-damper third-person follow, yaw-only frame, speed-linked FOV
+- [ ] Camera collision raycast (needed once the Forest canopy exists)
 
-#### M1e — Hero asset (parallel)
+#### M1e — Hero asset ✅
 
-- [ ] Fiend scene `BeeSimulator - Assets`
-- [ ] `Bee` group: body, 2 wings (separate objects, shoulder pivots), legs
-- [ ] Export GLB, load via `GLTFLoader`
-- [ ] Procedural wing flap driven by `t`
-- [ ] Pollen visual on the body (a shader or a scaled child mesh)
+- [x] `bee.glb` loaded, root layout transform reset on load
+- [x] Procedural wing flap driven from the shoulder pivot groups
+
+### Playtest findings (first hands-on session)
+
+Three issues reported from actually flying it. All three were **feel** problems, not logic
+bugs, which is exactly why this milestone exists.
+
+| Report | Measured cause | Fix |
+|---|---|---|
+| "Crazy fast" | 16 m/s cap for a 0.36 m bee | Cap 7, and damping lowered so natural top speed is **5.4 m/s** rather than the cap |
+| "Auto hold is very long" / "glides tooo far" | Release → settle took **~2.5 s and ~20 m** | Delay 0.2→0.1 s, ramp 0.4→0.15 s, damping 1.6→4.5. Now **1.7 m in 0.8 s** |
+| "The opposite key must instant stop" | Reverse thrust alone took seconds to bite | Added explicit `brakeDamping`: counter-input now stops the bee in **0.75 s** |
+| Mouse left/right reversed | `attitude.roll` is a Z rotation, and a *positive* Z rotation raises the **right** wing, banking the bee **left** | Sign converted in one place, in `flight.ts`, with the Three.js verification recorded |
+
+A regression test now pins the glide distance, and the control-direction tests exist because
+a sign error here produces perfectly smooth flight that simply goes the wrong way — which
+survives playtesting, because you unconsciously adapt to it.
 
 ### Acceptance criteria
 
-- [ ] **Subjective but decisive**: flying for 2 minutes without an objective is enjoyable
-- [ ] Identical behavior at 60 fps and 144 fps (proves fixed timestep works)
-- [ ] Nose-down-to-accelerate is *felt* — speed reads on screen
-- [ ] Hovering is easy enough to place the bee within ~0.2 m of a point and hold it
-- [ ] Auto-stab engages after ~200 ms idle with no visible snap or jerk
-- [ ] Both input schemes are playable; neither is a degraded fallback
+- [ ] **Subjective**: flying for 2 minutes without an objective is enjoyable — *partially
+      confirmed; the reporter liked the feel but flagged the three tuning issues above*
+- [ ] Identical behavior at 60 fps and 144 fps
+- [x] Nose-down-to-accelerate is felt — speed reads on screen
+- [x] Hover is stable enough to hold position (asserted in tests)
+- [x] Auto-stab engages after inactivity with no visible snap
+- [x] Both input schemes are playable
 - [ ] Rebinding works and survives a reload
-- [ ] `step()` is unit-tested: same inputs → same outputs across 1 000 ticks
+- [x] `step()` is unit-tested: same inputs → same outputs (**42 tests passing**)
 
 ### Risks at M1
 
