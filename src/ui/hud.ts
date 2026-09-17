@@ -70,7 +70,7 @@ export class Hud {
         `${info.stabilized ? "AUTO (level)" : "manual"}`,
       ``,
       `Z/S pitch    Q/D roll    I/K climb    J/L yaw`,
-      `SPACE sting   T hive panel   M scheme (${info.scheme})   R respawn`,
+      `SPACE sting   T hive panel   M scheme (${info.scheme})   N mute   R respawn`,
     ];
 
     if (info.scheme === "mouse" && !info.pointerLocked) {

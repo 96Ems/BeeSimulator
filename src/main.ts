@@ -12,6 +12,7 @@
 
 import { BEE, FLIGHT, HIVE, SESSION } from "./data/tuning";
 import { ENEMIES } from "./data/enemies";
+import { AudioEngine } from "./audio/AudioEngine";
 import { createSessionStats, onDeposit, onHit, pollenPerMinute, resetSession } from "./game/Session";
 import { FixedStepLoop } from "./game/Loop";
 import { InputManager } from "./input/InputManager";
@@ -174,6 +175,24 @@ const treePanel = new TreePanel(document.body, {
 
 const resultsScreen = new ResultsScreen(document.body);
 
+// ── audio ────────────────────────────────────────────────────────────────────────
+
+const audio = new AudioEngine();
+
+// Browsers refuse to start audio outside a user gesture, so the context is created on the
+// first click or keypress rather than at load.
+const startAudio = (): void => {
+  void audio.start();
+};
+window.addEventListener("pointerdown", startAudio, { once: true });
+window.addEventListener("keydown", startAudio, { once: true });
+
+// Silence the continuous voices when the tab is hidden: a bee buzz droning from a background
+// tab is the kind of thing that makes people close a game permanently.
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) audio.silence();
+});
+
 // ── input ────────────────────────────────────────────────────────────────────────
 
 const input = new InputManager(canvas);
@@ -211,6 +230,8 @@ window.addEventListener("keydown", (event) => {
     followCamera.reset(renderBee);
   } else if (event.code === "KeyM") {
     input.setScheme(input.currentScheme === "mouse" ? "keyboard" : "mouse");
+  } else if (event.code === "KeyN") {
+    audio.toggleMute();
   }
 });
 
@@ -243,6 +264,7 @@ const loop = new FixedStepLoop(FLIGHT_STEP, (dt) => {
   events.length = 0;
   step(state, command, dt, events);
   consume(events);
+  audio.playEvents(events);
 
   session.elapsed += dt;
   if (session.elapsed >= SESSION.durationSeconds) finish();
@@ -340,6 +362,8 @@ renderer.setAnimationLoop((time: number) => {
   followCamera.update(renderBee, frameSeconds);
   focusShadows(renderBee.position.x, renderBee.position.z);
 
+  updateAudio();
+
   renderer.render(scene, followCamera.camera);
 
   // HUD at 5 Hz. Rewriting the DOM every frame costs more than it looks, and the numbers are
@@ -402,11 +426,43 @@ const THREAT_LABELS: Record<Enemy["kind"], string> = {
   wasp: "WASPS",
 };
 
+/** Feed the audio engine the continuous state it needs. One-shots come from events. */
+function updateAudio(): void {
+  const bee = state.bee;
+  const paused = treePanel.isOpen || resultsScreen.isOpen;
+
+  if (paused) {
+    audio.silence();
+    return;
+  }
+
+  const speed = Math.hypot(bee.velocity.x, bee.velocity.z);
+  const load = bee.pollenCapacity > 0 ? bee.pollen / bee.pollenCapacity : 0;
+  audio.updateBee(speed, FLIGHT.maxHorizontalSpeed, load);
+
+  const threat = nearestThreat(state.enemies, bee.position);
+  audio.updateThreat(
+    threat
+      ? {
+          kind: threat.kind,
+          distance: threat.distance,
+          position: threat.position,
+        }
+      : null,
+    { position: bee.position, yaw: bee.attitude.yaw },
+  );
+}
+
 function nearestThreat(
   enemies: readonly Enemy[],
   position: { x: number; y: number; z: number },
-): { distance: number; label: string } | null {
-  let best: { distance: number; label: string } | null = null;
+): { distance: number; label: string; kind: Enemy["kind"]; position: { x: number; y: number; z: number } } | null {
+  let best: {
+    distance: number;
+    label: string;
+    kind: Enemy["kind"];
+    position: { x: number; y: number; z: number };
+  } | null = null;
 
   for (const enemy of enemies) {
     if (enemy.state === "dead") continue;
@@ -421,7 +477,12 @@ function nearestThreat(
     );
 
     if (best === null || distance < best.distance) {
-      best = { distance, label: THREAT_LABELS[enemy.kind] };
+      best = {
+        distance,
+        label: THREAT_LABELS[enemy.kind],
+        kind: enemy.kind,
+        position: enemy.position,
+      };
     }
   }
 
