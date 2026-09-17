@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BeeSimulator</title>
+    <style>
+      :root {
+        color-scheme: dark;
+      }
+
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        background: #0b1014;
+        font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+      }
+
+      #app {
+        display: block;
+        width: 100vw;
+        height: 100vh;
+      }
+
+      #debug {
+        position: fixed;
+        top: 12px;
+        left: 12px;
+        padding: 8px 12px;
+        border-radius: 6px;
+        background: rgba(0, 0, 0, 0.55);
+        color: #b9f0c4;
+        font-size: 12px;
+        line-height: 1.6;
+        white-space: pre;
+        pointer-events: none;
+        user-select: none;
+      }
+
+      #debug .hint {
+        color: #7d8f85;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="app"></canvas>
+    <div id="debug"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

@@ -1,0 +1,12 @@
+﻿# Binary 3D assets are stored via Git LFS.
+#
+# A fresh clone REQUIRES git-lfs (https://git-lfs.com). Without it the .glb files are
+# checked out as small text pointer files, and the game fails at load time with a
+# GLTFLoader parse error that gives no hint about the real cause.
+#
+#   git lfs install          # once per machine
+#   git clone <repo>         # then LFS pulls the real binaries automatically
+#
+# Regenerating the assets instead does not need LFS, but does need the Fiend write
+# secret: npm run assets
+*.glb filter=lfs diff=lfs merge=lfs -text

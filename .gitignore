@@ -1,0 +1,34 @@
+# ── Build output ──────────────────────────────────────────────────────────────
+dist/
+*.tsbuildinfo
+
+# ── Dependencies ──────────────────────────────────────────────────────────────
+node_modules/
+
+# ── Logs ──────────────────────────────────────────────────────────────────────
+# Covers kn9t-tui.log, which lives in the project root and is not ours to commit.
+*.log
+npm-debug.log*
+
+# ── Secrets ───────────────────────────────────────────────────────────────────
+# Fiend scene write credential. Grants edit access to the asset scene; publication
+# would let anyone rewrite every asset in the game.
+tools/fiend.config.json
+.env
+.env.*
+
+# ── Fiend exports ─────────────────────────────────────────────────────────────
+# public/assets/*.glb IS committed, on purpose: regenerating them needs network access
+# and the Fiend write secret, so a fresh clone would otherwise have no models at all.
+# They are stored via Git LFS — see .gitattributes. A clone without git-lfs installed
+# gets pointer files instead of models.
+
+# ── Editors ───────────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+
+# ── OS ────────────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
