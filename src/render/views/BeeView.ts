@@ -14,8 +14,8 @@
  */
 
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
-import { Group, Mesh, Object3D } from "three";
-import { BEE } from "../../data/tuning";
+import { Group, Mesh, MeshStandardMaterial, Object3D, SphereGeometry } from "three";
+import { BEE, FLIGHT } from "../../data/tuning";
 import type { RenderBee } from "../interpolation";
 
 /** Wing flap rate at a standstill, in radians per second of phase. */
@@ -31,6 +31,18 @@ export class BeeView {
   private wingLeft: Object3D | null = null;
   private wingRight: Object3D | null = null;
   private flapPhase = 0;
+
+  /**
+   * The pollen load, drawn on the abdomen.
+   *
+   * DESIGN §6.1 promises pollen "visible on the bee's body", and it earns its place: it is the
+   * only channel that communicates *how much you are carrying* without asking the player to
+   * check a gauge. That matters because the wasp swarm's aggression scales with exactly this
+   * value (DESIGN §8.3) - so the thing that makes you a target is the thing you can watch
+   * growing on yourself.
+   */
+  private pollenSac: Mesh | null = null;
+  private pollenMaterial: MeshStandardMaterial | null = null;
 
   private constructor(root: Group) {
     this.root = root;
@@ -66,11 +78,64 @@ export class BeeView {
       );
     }
 
+    view.buildPollenSac(asset);
+
     return view;
   }
 
+  /**
+   * Add the pollen sac as a child of the abdomen, so it inherits the body's transform without
+   * needing to be positioned every frame.
+   */
+  private buildPollenSac(asset: Object3D): void {
+    const abdomen = asset.getObjectByName("Bee_Abdomen") ?? asset;
+
+    const material = new MeshStandardMaterial({
+      color: 0xf5c518,
+      roughness: 0.62,
+      metalness: 0,
+      emissive: 0x6b4a00,
+      emissiveIntensity: 0.25,
+    });
+
+    // One lobe rather than a sphere pair. Real bees carry pollen in baskets on the hind legs,
+    // but at this camera distance a single offset lobe under the abdomen reads clearly as
+    // cargo, where two small ones read as noise.
+    const sac = new Mesh(new SphereGeometry(0.055, 12, 8), material);
+    sac.position.set(0, -0.05, 0.05);
+    sac.castShadow = true;
+    sac.visible = false;
+
+    abdomen.add(sac);
+
+    this.pollenSac = sac;
+    this.pollenMaterial = material;
+  }
+
+  /**
+   * Grow the pollen sac with the load.
+   *
+   * Scaling rather than swapping geometry keeps this free, and the visible growth is what
+   * communicates "you are becoming a target" without a word of UI.
+   */
+  private updatePollenSac(ratio: number): void {
+    if (!this.pollenSac || !this.pollenMaterial) return;
+
+    // Hidden entirely when empty: a speck visible at zero load would make the bee look
+    // permanently loaded and destroy the signal.
+    const visible = ratio > 0.02;
+    this.pollenSac.visible = visible;
+    if (!visible) return;
+
+    const scale = 0.4 + ratio * 0.95;
+    this.pollenSac.scale.set(scale, scale * 0.85, scale * 1.2);
+
+    // Glows harder as it fills, so a nearly-full bee is conspicuous even against a busy meadow.
+    this.pollenMaterial.emissiveIntensity = 0.2 + ratio * 0.55;
+  }
+
   /** Apply an interpolated transform and advance the wing flap. */
-  update(bee: RenderBee, dt: number): void {
+  update(bee: RenderBee, dt: number, pollenRatio: number): void {
     this.root.position.set(bee.position.x, bee.position.y, bee.position.z);
 
     // Three.js 'YXZ' matches the simulation's intrinsic yaw-pitch-roll convention exactly,
@@ -78,7 +143,7 @@ export class BeeView {
     // forward, so the attitude maps straight through.
     this.root.rotation.set(bee.attitude.pitch, bee.attitude.yaw, bee.attitude.roll, "YXZ");
 
-    const speedRatio = Math.min(bee.speed / 16, 1);
+    const speedRatio = Math.min(bee.speed / FLIGHT.maxHorizontalSpeed, 1);
     this.flapPhase += (FLAP_RATE_IDLE + FLAP_RATE_SPEED * speedRatio) * dt;
 
     const flap = Math.sin(this.flapPhase) * FLAP_AMPLITUDE;
@@ -86,6 +151,8 @@ export class BeeView {
     // matching sign would tilt them in opposite directions rather than beating together.
     if (this.wingLeft) this.wingLeft.rotation.z = -flap;
     if (this.wingRight) this.wingRight.rotation.z = flap;
+
+    this.updatePollenSac(pollenRatio);
   }
 
   /** Half the body length, for placing the camera and (later) the sting hitbox. */

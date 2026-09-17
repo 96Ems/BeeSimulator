@@ -44,6 +44,7 @@ import { applyStats, copyBee, createBee, createInitialState } from "./sim/State"
 import { step } from "./sim/step";
 import { createWorld } from "./sim/world";
 import { Hud } from "./ui/hud";
+import { FlashOverlay, installFlashStyles } from "./ui/flash";
 import { ResultsScreen, installResultsStyles } from "./ui/results";
 import { TreePanel, installTreePanelStyles } from "./ui/treePanel";
 
@@ -158,6 +159,12 @@ followCamera.reset(renderBee);
 
 installTreePanelStyles();
 installResultsStyles();
+installFlashStyles();
+
+const flash = new FlashOverlay(document.body);
+
+/** Set by a completed forage, decayed each frame. Presentation only. */
+let rewardFlash = 0;
 
 const treePanel = new TreePanel(document.body, {
   onPurchase: (nodeId, cost) => {
@@ -282,6 +289,10 @@ function consume(list: readonly SimEvent[]): void {
         progression.pollen += event.pollen;
         progression.lifetime += event.pollen;
         banked += event.pollen;
+        rewardFlash = 1;
+        break;
+      case "completed":
+        rewardFlash = 0.6;
         break;
       case "beeHit":
         onHit(session);
@@ -354,7 +365,14 @@ renderer.setAnimationLoop((time: number) => {
   loop.advance(frameSeconds);
 
   interpolateBee(previousBee, state.bee, loop.alpha, renderBee);
-  beeView.update(renderBee, frameSeconds);
+  const load = state.bee.pollenCapacity > 0 ? state.bee.pollen / state.bee.pollenCapacity : 0;
+  beeView.update(renderBee, frameSeconds, load);
+
+  // Overlays decay here rather than in the loop so they are tied to *display* time, not to
+  // simulation steps — a hidden tab would otherwise burn through the flash before it is seen.
+  rewardFlash = Math.max(0, rewardFlash - frameSeconds * 1.6);
+  flash.setDamage(state.damageFlash / 0.4);
+  flash.setReward(rewardFlash);
 
   flowerField.update(state.flowers);
   enemyField.update(state.enemies, frameSeconds);
