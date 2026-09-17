@@ -38,8 +38,18 @@ export const BEE = {
    */
   minAltitude: 0.35,
 
-  /** Distance at which a flower invites foraging (used from M2). */
-  forageRange: 0.9,
+  /**
+   * Pollen capacity, before any skill-tree bonuses. DESIGN §3: the cap is the engine of the
+   * entire risk model, not a balance knob — without it there is no reason to return,
+   * therefore no exposure to danger, therefore no game.
+   *
+   * Tuned so a single rare flower very nearly fills the bee, two sunflowers fill it, and a
+   * daisy run takes fifteen. Safe flowers are slow; rich flowers are a full commitment.
+   */
+  basePollenCapacity: 120,
+
+  /** Seconds between stings. */
+  stingCooldown: 0.6,
 } as const;
 
 /**
@@ -121,6 +131,13 @@ export const FLIGHT = {
 
   /** Below this stick deflection, the input counts as "no input" for stabilization. */
   inputDeadzone: 0.02,
+
+  /**
+   * Thrust multiplier while the takeoff lock is active after harvesting a `land`-mode flower.
+   * DESIGN §6.4: landing pays more, and this is what it costs — the bee is briefly heavy and
+   * cannot escape, which is the whole reason to check the sky before committing to a sunflower.
+   */
+  takeoffThrustScale: 0.35,
 } as const;
 
 /** Input feel. */
@@ -146,6 +163,15 @@ export const HIVE = {
   /** Entrances face outward; the player spawns just outside. */
   spawnRadius: 6,
   spawnAltitude: 3.2,
+  /** Horizontal distance within which pollen is deposited. */
+  depositRadius: 4.2,
+  /** Depositing requires the bee to be near the ground, so it cannot be done mid-flight. */
+  depositMaxAltitude: 3.0,
+} as const;
+
+/** The session: five minutes, per DESIGN §10.1. */
+export const SESSION = {
+  durationSeconds: 300,
 } as const;
 
 /** Camera framing. ARCHITECTURE §6.4. */

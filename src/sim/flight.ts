@@ -46,7 +46,10 @@ export function integrateFlight(bee: Bee, command: InputCommand, dt: number): vo
   updateAttitude(bee, command, dt);
   updateVelocity(bee, command, dt);
   updatePosition(bee, dt);
+
   bee.invulnerable = Math.max(0, bee.invulnerable - dt);
+  bee.takeoffLock = Math.max(0, bee.takeoffLock - dt);
+  bee.sinceSting += dt;
 }
 
 /**
@@ -151,7 +154,11 @@ function updateVelocity(bee: Bee, command: InputCommand, dt: number): void {
   // pitching the nose down tips the thrust vector forward, so attitude *is* the throttle.
   rotateUp(attitude, scratchUp);
 
-  const collective = FLIGHT.gravity + command.thrust * FLIGHT.collectiveRange;
+  // A bee that just harvested a `land`-mode flower is heavy and slow to lift. This is the
+  // entire cost of the high-yield flowers (DESIGN §6.4) — without it, landing would be a
+  // strictly better choice than hovering and the flower types would collapse into one.
+  const loaded = bee.takeoffLock > 0 ? FLIGHT.takeoffThrustScale : 1;
+  const collective = (FLIGHT.gravity + command.thrust * FLIGHT.collectiveRange) * loaded;
 
   velocity.x += scratchUp.x * collective * dt;
   velocity.y += (scratchUp.y * collective - FLIGHT.gravity) * dt;
