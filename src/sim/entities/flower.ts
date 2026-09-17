@@ -1,7 +1,7 @@
-﻿/**
- * Flower entities and the pollen economy. DESIGN Â§6.
+/**
+ * Flower entities and the pollen economy. DESIGN §6.
  *
- * A flower's state is deliberately tiny â€” it is a position, a type, and two timers. All the
+ * A flower's state is deliberately tiny — it is a position, a type, and two timers. All the
  * behaviour lives in `forage.ts`, and all the numbers live in `data/flowers.ts`, so
  * rebalancing is editing data.
  */
@@ -16,7 +16,7 @@ export type Flower = {
   position: Vec3;
   /**
    * Pollen still available, 0..1. Shared between all bees, so in co-op two players cannot
-   * double-dip the same flower (DESIGN Â§11.1).
+   * double-dip the same flower (DESIGN §11.1).
    */
   richness: number;
   /** Seconds until refill. Ignored while `richness > 0`. */

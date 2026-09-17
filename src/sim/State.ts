@@ -50,6 +50,28 @@ export type Bee = {
 
   /** Seconds since the last sting, for the attack cooldown. */
   sinceSting: number;
+
+  /**
+   * Skill-tree modifiers, baked onto the bee when it spawns.
+   *
+   * Copied rather than referenced so the simulation hot path never reaches into progression.
+   * The sim sees plain numbers; the tree stays a data concern (ARCHITECTURE §8.2).
+   */
+  speedMul: number;
+  turnMul: number;
+  dragMul: number;
+  climbMul: number;
+  stabilityMul: number;
+  forageSpeedMul: number;
+  yieldMul: number;
+  /** Fraction of pollen retained on a hit, on top of the base loss. */
+  pollenKeep: number;
+  invulnerableBonus: number;
+  /** Extra seconds of takeoff recovery removed after landing. */
+  takeoffRecovery: number;
+  stingReach: number;
+  harassmentMul: number;
+  aggroShift: number;
 };
 
 export type SimState = {
@@ -91,7 +113,71 @@ export function createBee(id = 1): Bee {
     foragingFlowerId: null,
     forageProgress: 0,
     sinceSting: 999,
+
+    // Neutral until a StatBlock is applied. A bee with no investment must behave exactly as it
+    // did before the skill tree existed, so the fallback is always "multiply by one".
+    speedMul: 1,
+    turnMul: 1,
+    dragMul: 1,
+    climbMul: 1,
+    stabilityMul: 1,
+    forageSpeedMul: 1,
+    yieldMul: 1,
+    pollenKeep: 0,
+    invulnerableBonus: 0,
+    takeoffRecovery: 0,
+    stingReach: 0,
+    harassmentMul: 1,
+    aggroShift: 0,
   };
+}
+
+/**
+ * Apply a folded skill tree to a bee.
+ *
+ * Called on spawn and on respawn, not every step: the hot path reads only the bee, so an
+ * upgrade mid-session takes effect at the next respawn rather than mid-flight. That is also
+ * the honest behaviour — the player should feel their build change when they return to the
+ * hive, not have it shift under them in the air.
+ */
+export function applyStats(
+  bee: Bee,
+  stats: {
+    pollenCapacity: number;
+    maxLives: number;
+    forageSpeedMul: number;
+    yieldMul: number;
+    pollenKeep: number;
+    invulnerableBonus: number;
+    takeoffRecovery: number;
+    stingReach: number;
+    harassmentMul: number;
+    aggroShift: number;
+    speedMul: number;
+    turnMul: number;
+    dragMul: number;
+    climbMul: number;
+    stabilityMul: number;
+  },
+): void {
+  bee.pollenCapacity = stats.pollenCapacity;
+  bee.maxLives = stats.maxLives;
+  bee.lives = Math.min(bee.lives, bee.maxLives);
+
+  bee.forageSpeedMul = stats.forageSpeedMul;
+  bee.yieldMul = stats.yieldMul;
+  bee.pollenKeep = stats.pollenKeep;
+  bee.invulnerableBonus = stats.invulnerableBonus;
+  bee.takeoffRecovery = stats.takeoffRecovery;
+  bee.stingReach = stats.stingReach;
+  bee.harassmentMul = stats.harassmentMul;
+  bee.aggroShift = stats.aggroShift;
+
+  bee.speedMul = stats.speedMul;
+  bee.turnMul = stats.turnMul;
+  bee.dragMul = stats.dragMul;
+  bee.climbMul = stats.climbMul;
+  bee.stabilityMul = stats.stabilityMul;
 }
 
 export function createInitialState(seed = 1337): SimState {
@@ -144,6 +230,20 @@ export function copyBee(source: Bee, out: Bee): Bee {
   out.foragingFlowerId = source.foragingFlowerId;
   out.forageProgress = source.forageProgress;
   out.sinceSting = source.sinceSting;
+
+  out.speedMul = source.speedMul;
+  out.turnMul = source.turnMul;
+  out.dragMul = source.dragMul;
+  out.climbMul = source.climbMul;
+  out.stabilityMul = source.stabilityMul;
+  out.forageSpeedMul = source.forageSpeedMul;
+  out.yieldMul = source.yieldMul;
+  out.pollenKeep = source.pollenKeep;
+  out.invulnerableBonus = source.invulnerableBonus;
+  out.takeoffRecovery = source.takeoffRecovery;
+  out.stingReach = source.stingReach;
+  out.harassmentMul = source.harassmentMul;
+  out.aggroShift = source.aggroShift;
 
   return out;
 }

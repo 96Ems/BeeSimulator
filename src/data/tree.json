@@ -1,0 +1,304 @@
+{
+  "version": 1,
+  "branches": [
+    {
+      "id": "foraging",
+      "label": "Foraging",
+      "universal": true,
+      "summary": "The shared language. Every build invests here, because gathering pollen is the mission."
+    },
+    {
+      "id": "hardiness",
+      "label": "Hardiness",
+      "universal": false,
+      "summary": "Punished by the bird, rewarded by the swarm. The tank's branch."
+    },
+    {
+      "id": "offense",
+      "label": "Offense",
+      "universal": false,
+      "summary": "Opens the windows the others fly through. The hornet's answer."
+    },
+    {
+      "id": "mobility",
+      "label": "Mobility",
+      "universal": false,
+      "summary": "Baits the dive, outruns the chase, and is punished by the spider."
+    }
+  ],
+  "nodes": [
+    {
+      "id": "forage.capacity1",
+      "branch": "foraging",
+      "label": "Deeper Crop",
+      "description": "Carry more pollen before you must return.",
+      "kind": "passive",
+      "maxTier": 3,
+      "tierCost": 3,
+      "requires": [],
+      "effects": [{ "kind": "capacity_add", "value": 30, "perTier": true }]
+    },
+    {
+      "id": "forage.speed1",
+      "branch": "foraging",
+      "label": "Quick Tongue",
+      "description": "Forage every flower faster.",
+      "kind": "passive",
+      "maxTier": 3,
+      "tierCost": 3,
+      "requires": [],
+      "effects": [{ "kind": "forage_speed_mul", "value": 0.1, "perTier": true }]
+    },
+    {
+      "id": "forage.yield1",
+      "branch": "foraging",
+      "label": "Clean Harvest",
+      "description": "Waste less of every flower. More pollen per forage.",
+      "kind": "passive",
+      "maxTier": 3,
+      "tierCost": 4,
+      "requires": ["forage.capacity1"],
+      "effects": [{ "kind": "yield_mul", "value": 0.12, "perTier": true }]
+    },
+    {
+      "id": "forage.wind1",
+      "branch": "foraging",
+      "label": "Steady Hover",
+      "description": "Hold position better in gusty air.",
+      "kind": "passive",
+      "maxTier": 2,
+      "tierCost": 3,
+      "requires": [],
+      "effects": [{ "kind": "wind_resist", "value": 0.25, "perTier": true }]
+    },
+    {
+      "id": "forage.grip1",
+      "branch": "foraging",
+      "label": "Firm Grip",
+      "description": "Recover from landing much faster.",
+      "kind": "passive",
+      "maxTier": 2,
+      "tierCost": 4,
+      "requires": ["forage.speed1"],
+      "effects": [{ "kind": "takeoff_recovery", "value": 0.3, "perTier": true }]
+    },
+    {
+      "id": "forage.capacity2",
+      "branch": "foraging",
+      "label": "Pollen Sacs",
+      "description": "A further expansion of carrying capacity.",
+      "kind": "passive",
+      "maxTier": 2,
+      "tierCost": 6,
+      "requires": ["forage.capacity1"],
+      "effects": [{ "kind": "capacity_add", "value": 45, "perTier": true }]
+    },
+
+    {
+      "id": "hard.lives1",
+      "branch": "hardiness",
+      "label": "Thick Chitin",
+      "description": "One more life between you and the ground.",
+      "kind": "passive",
+      "maxTier": 2,
+      "tierCost": 6,
+      "requires": [],
+      "effects": [{ "kind": "lives_add", "value": 1, "perTier": true }]
+    },
+    {
+      "id": "hard.keep1",
+      "branch": "hardiness",
+      "label": "Tight Hold",
+      "description": "Lose less pollen when you are struck.",
+      "kind": "passive",
+      "maxTier": 3,
+      "tierCost": 4,
+      "requires": [],
+      "effects": [{ "kind": "pollen_keep", "value": 0.08, "perTier": true }]
+    },
+    {
+      "id": "hard.recover1",
+      "branch": "hardiness",
+      "label": "Shake It Off",
+      "description": "Recover from a hit faster.",
+      "kind": "passive",
+      "maxTier": 2,
+      "tierCost": 3,
+      "requires": [],
+      "effects": [{ "kind": "invulnerable_bonus", "value": 0.4, "perTier": true }]
+    },
+    {
+      "id": "hard.magnet",
+      "branch": "hardiness",
+      "label": "Loud Buzz",
+      "description": "Wasps cluster on you. Their aggression radius shifts from your cargo to your presence.",
+      "kind": "passive",
+      "maxTier": 2,
+      "tierCost": 5,
+      "requires": ["hard.lives1"],
+      "effects": [{ "kind": "aggro_shift", "value": 0.2, "perTier": true }]
+    },
+    {
+      "id": "hard.shield",
+      "branch": "hardiness",
+      "label": "Wax Shield",
+      "description": "ACTIVE: a brief shield that shrugs off one hit. Costs no flight control.",
+      "kind": "active_instant",
+      "skillId": "shield",
+      "cooldownSeconds": 45,
+      "maxTier": 2,
+      "tierCost": 8,
+      "requires": ["hard.recover1"],
+      "effects": [{ "kind": "unlock_skill", "value": "shield", "perTier": false }]
+    },
+    {
+      "id": "hard.tough1",
+      "branch": "hardiness",
+      "label": "Weathered",
+      "description": "Absorb more punishment before a life is lost.",
+      "kind": "passive",
+      "maxTier": 3,
+      "tierCost": 5,
+      "requires": ["hard.keep1"],
+      "effects": [{ "kind": "damage_resist", "value": 0.15, "perTier": true }]
+    },
+
+    {
+      "id": "off.sting1",
+      "branch": "offense",
+      "label": "Sharper Sting",
+      "description": "Each sting does more against threats.",
+      "kind": "passive",
+      "maxTier": 3,
+      "tierCost": 5,
+      "requires": [],
+      "effects": [{ "kind": "sting_damage", "value": 1, "perTier": true }]
+    },
+    {
+      "id": "off.harass1",
+      "branch": "offense",
+      "label": "Relentless",
+      "description": "Drive the bird off with fewer stings.",
+      "kind": "passive",
+      "maxTier": 3,
+      "tierCost": 4,
+      "requires": [],
+      "effects": [{ "kind": "harassment_mul", "value": 0.25, "perTier": true }]
+    },
+    {
+      "id": "off.reach1",
+      "branch": "offense",
+      "label": "Long Reach",
+      "description": "Strike from further out, so you need less commitment.",
+      "kind": "passive",
+      "maxTier": 2,
+      "tierCost": 4,
+      "requires": [],
+      "effects": [{ "kind": "sting_reach", "value": 0.35, "perTier": true }]
+    },
+    {
+      "id": "off.dive",
+      "branch": "offense",
+      "label": "Killing Dive",
+      "description": "ACTIVE: a committed dive that hits far harder. You give up flight control to do it.",
+      "kind": "active_committed",
+      "skillId": "dive",
+      "cooldownSeconds": 8,
+      "maxTier": 2,
+      "tierCost": 8,
+      "requires": ["off.sting1"],
+      "effects": [{ "kind": "unlock_skill", "value": "dive", "perTier": false }]
+    },
+    {
+      "id": "off.cooldown1",
+      "branch": "offense",
+      "label": "Quick Reflexes",
+      "description": "Sting again sooner.",
+      "kind": "passive",
+      "maxTier": 2,
+      "tierCost": 3,
+      "requires": ["off.harass1"],
+      "effects": [{ "kind": "sting_cooldown", "value": 0.12, "perTier": true }]
+    },
+    {
+      "id": "off.execute1",
+      "branch": "offense",
+      "label": "Precision",
+      "description": "Threats already hurt take even more from your sting.",
+      "kind": "passive",
+      "maxTier": 2,
+      "tierCost": 6,
+      "requires": ["off.sting1"],
+      "effects": [{ "kind": "sting_damage", "value": 1, "perTier": true }]
+    },
+
+    {
+      "id": "mob.speed1",
+      "branch": "mobility",
+      "label": "Light Frame",
+      "description": "A higher top speed in level flight.",
+      "kind": "passive",
+      "maxTier": 3,
+      "tierCost": 4,
+      "requires": [],
+      "effects": [{ "kind": "speed_mul", "value": 0.08, "perTier": true }]
+    },
+    {
+      "id": "mob.turn1",
+      "branch": "mobility",
+      "label": "Agile Wings",
+      "description": "Pitch and roll respond faster.",
+      "kind": "passive",
+      "maxTier": 3,
+      "tierCost": 3,
+      "requires": [],
+      "effects": [{ "kind": "turn_mul", "value": 0.1, "perTier": true }]
+    },
+    {
+      "id": "mob.drag1",
+      "branch": "mobility",
+      "label": "Sleek",
+      "description": "Less air resistance, so you keep momentum longer.",
+      "kind": "passive",
+      "maxTier": 2,
+      "tierCost": 4,
+      "requires": ["mob.speed1"],
+      "effects": [{ "kind": "drag_reduction", "value": 0.12, "perTier": true }]
+    },
+    {
+      "id": "mob.climb1",
+      "branch": "mobility",
+      "label": "Strong Lift",
+      "description": "Climb faster, and recover from a landing sooner.",
+      "kind": "passive",
+      "maxTier": 2,
+      "tierCost": 3,
+      "requires": [],
+      "effects": [{ "kind": "climb_mul", "value": 0.15, "perTier": true }]
+    },
+    {
+      "id": "mob.dash",
+      "branch": "mobility",
+      "label": "Burst",
+      "description": "ACTIVE: a hard dash. Commits your flight, but breaks a pursuit.",
+      "kind": "active_committed",
+      "skillId": "dash",
+      "cooldownSeconds": 12,
+      "maxTier": 2,
+      "tierCost": 8,
+      "requires": ["mob.speed1"],
+      "effects": [{ "kind": "unlock_skill", "value": "dash", "perTier": false }]
+    },
+    {
+      "id": "mob.stable1",
+      "branch": "mobility",
+      "label": "Sure Footing",
+      "description": "Auto-stabilization engages sooner and holds harder.",
+      "kind": "passive",
+      "maxTier": 2,
+      "tierCost": 4,
+      "requires": ["mob.turn1"],
+      "effects": [{ "kind": "stability_mul", "value": 0.15, "perTier": true }]
+    }
+  ]
+}

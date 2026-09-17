@@ -1,16 +1,16 @@
-﻿/**
- * Predators. DESIGN Â§8.
+/**
+ * Predators. DESIGN §8.
  *
  * Three enemies, three deliberately different economic models, so none of them plays the
  * same way:
  *
- *   bird    permanent tax    â€” unkillable; filling its harassment meter buys a breather
- *   hornet  one-off cost     â€” fragile and killable, but flees after the first hit
- *   wasp    subscription     â€” trivial to kill individually, constantly reconstituted
+ *   bird    permanent tax    — unkillable; filling its harassment meter buys a breather
+ *   hornet  one-off cost     — fragile and killable, but flees after the first hit
+ *   wasp    subscription     — trivial to kill individually, constantly reconstituted
  *
  * The second design rule lives here too: **every enemy punishes one role and rewards
  * another**, which is what forces co-op to be a puzzle rather than a damage race (DESIGN
- * Â§8.5). The bird punishes the slow tank; the swarm is only survivable by magnetising it.
+ * §8.5). The bird punishes the slow tank; the swarm is only survivable by magnetising it.
  *
  * As with all of `sim/`, this file knows nothing about rendering. It emits events instead.
  */
@@ -26,7 +26,7 @@ export type EnemyKind = "bird" | "hornet" | "wasp";
 
 export type EnemyState =
   | "patrol" // flying its circuit, unaware
-  | "telegraph" // committed, winding up â€” the player's warning
+  | "telegraph" // committed, winding up — the player's warning
   | "attack" // plunging or pursuing
   | "recover" // floundering after a miss; vulnerable
   | "flee" // driven off or hurt, leaving
@@ -177,7 +177,7 @@ export function updateEnemies(state: SimState, dt: number, events: SimEvent[]): 
  *
  * It targets the **most pollen-laden** bee, which is the single most important line in the
  * file. Your cargo is what makes you worth eating, so the richest return is the most
- * dangerous one â€” the tension comes from the player's own greed rather than from the enemy.
+ * dangerous one — the tension comes from the player's own greed rather than from the enemy.
  */
 function updateBird(enemy: Enemy, state: SimState, dt: number, events: SimEvent[]): void {
   const { bird } = ENEMIES;
@@ -193,7 +193,7 @@ function updateBird(enemy: Enemy, state: SimState, dt: number, events: SimEvent[
   switch (enemy.state) {
     case "patrol": {
       // A slow circuit. The bird is a looming shape before it is a threat, which gives the
-      // player time to notice it and decide â€” reading the sky is meant to be a skill.
+      // player time to notice it and decide — reading the sky is meant to be a skill.
       enemy.orbitAngle += (bird.patrolSpeed / Math.max(enemy.orbitRadius, 1)) * dt;
       const targetX = enemy.anchor.x + Math.cos(enemy.orbitAngle) * enemy.orbitRadius;
       const targetZ = enemy.anchor.z + Math.sin(enemy.orbitAngle) * enemy.orbitRadius;
@@ -208,7 +208,7 @@ function updateBird(enemy: Enemy, state: SimState, dt: number, events: SimEvent[
 
     case "telegraph": {
       // Hold position and aim. The telegraph exists because a dive you cannot see coming is
-      // not difficulty, it is a bug â€” the player must have time to react.
+      // not difficulty, it is a bug — the player must have time to react.
       steerToward(enemy, bee.position.x, bee.position.y + 2, bee.position.z, 2, dt);
 
       if (enemy.stateTime >= bird.diveTelegraph) {
@@ -223,11 +223,11 @@ function updateBird(enemy: Enemy, state: SimState, dt: number, events: SimEvent[
     }
 
     case "attack": {
-      // No steering: the dive is committed. That is what makes dodging possible â€” the bee
+      // No steering: the dive is committed. That is what makes dodging possible — the bee
       // can dodge because the bird cannot correct.
       const speed = Math.hypot(enemy.velocity.x, enemy.velocity.y, enemy.velocity.z);
       if (speed < bird.diveSpeed * 0.55 || enemy.stateTime > 2.5) {
-        // Missed. The bird flounders with its belly exposed â€” the window a team exploits,
+        // Missed. The bird flounders with its belly exposed — the window a team exploits,
         // and the reason the bird is repelled rather than merely endured.
         enemy.state = "recover";
         enemy.stateTime = 0;
@@ -449,7 +449,7 @@ function updateWasp(enemy: Enemy, state: SimState, dt: number, events: SimEvent[
 
   if (distance < wasp.contactRadius && bee.invulnerable <= 0) {
     events.push({ kind: "beeHit", enemyId: enemy.id, damage: 1 });
-    // The wasp is spent on contact, whether or not it hurt â€” otherwise a single wasp would
+    // The wasp is spent on contact, whether or not it hurt — otherwise a single wasp would
     // hit the invulnerability window repeatedly.
     enemy.state = "dead";
     enemy.stateTime = 0;
@@ -469,7 +469,7 @@ function updateWasp(enemy: Enemy, state: SimState, dt: number, events: SimEvent[
  *
  * The sting is a *dive* rather than a button-triggered melee: it reuses the pitch-down the
  * player already mastered, so there is no new mechanic to learn, and the hitbox is the nose
- * rather than an aura â€” so speed genuinely becomes a weapon.
+ * rather than an aura — so speed genuinely becomes a weapon.
  */
 export function updateSting(state: SimState, dt: number, events: SimEvent[]): void {
   const bee = state.bee;
@@ -503,7 +503,7 @@ export function updateSting(state: SimState, dt: number, events: SimEvent[]): vo
 
     if (enemy.kind === "bird") {
       // Unkillable. A sting only shortens its harassment meter, driving it off sooner.
-      // This is the "repel, never kill" rule from DESIGN Â§8.2, enforced in one place.
+      // This is the "repel, never kill" rule from DESIGN §8.2, enforced in one place.
       enemy.harassment = clamp(
         enemy.harassment + ENEMIES.bird.harassmentPerHit,
         0,
@@ -547,7 +547,7 @@ export function updateSting(state: SimState, dt: number, events: SimEvent[]): vo
 /**
  * Integrate an enemy's velocity into its position, with drag.
  *
- * Enemy movement is deliberately simplistic â€” this is not a simulation of bird aerodynamics.
+ * Enemy movement is deliberately simplistic — this is not a simulation of bird aerodynamics.
  * What matters is that threats are *readable*: predictable patrols, a telegraphed dive, and
  * a contact radius the player can judge.
  */

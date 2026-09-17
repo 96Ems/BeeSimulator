@@ -88,8 +88,8 @@ function updateAttitude(bee: Bee, command: InputCommand, dt: number): void {
   //   pitch > 0  nose up      (brake)
   //   roll  > 0  bank right
   //   yaw   > 0  turn left
-  const manualPitch = command.pitch * FLIGHT.pitchRate;
-  const manualYaw = command.yaw * FLIGHT.yawRate;
+  const manualPitch = command.pitch * FLIGHT.pitchRate * bee.turnMul;
+  const manualYaw = command.yaw * FLIGHT.yawRate * bee.turnMul;
 
   // Roll needs its sign flipped, and this is the *only* place that conversion belongs.
   //
@@ -101,14 +101,14 @@ function updateAttitude(bee: Bee, command: InputCommand, dt: number): void {
   // vector is (-0.479, 0.878, 0), i.e. thrust points along -X, which is the bee's left.
   // Getting this backwards makes D steer left, which reads as "the controls are broken"
   // long before it reads as "the sign is wrong".
-  const manualRoll = -command.roll * FLIGHT.rollRate;
+  const manualRoll = -command.roll * FLIGHT.rollRate * bee.turnMul;
 
   const blend = stabilizationBlend(bee.idleTime);
 
   // What "level flight" wants: pitch and roll driven back to zero. Sign-agnostic, so no
-  // conversion is needed here.
-  scratchLevel.pitch = -attitude.pitch * FLIGHT.stabilityGain;
-  scratchLevel.roll = -attitude.roll * FLIGHT.stabilityGain;
+  // conversion is needed here. `stabilityMul` is the Sure Footing node.
+  scratchLevel.pitch = -attitude.pitch * FLIGHT.stabilityGain * bee.stabilityMul;
+  scratchLevel.roll = -attitude.roll * FLIGHT.stabilityGain * bee.stabilityMul;
 
   const targetPitch = manualPitch + (scratchLevel.pitch - manualPitch) * blend;
   const targetRoll = manualRoll + (scratchLevel.roll - manualRoll) * blend;
@@ -158,7 +158,8 @@ function updateVelocity(bee: Bee, command: InputCommand, dt: number): void {
   // entire cost of the high-yield flowers (DESIGN §6.4) — without it, landing would be a
   // strictly better choice than hovering and the flower types would collapse into one.
   const loaded = bee.takeoffLock > 0 ? FLIGHT.takeoffThrustScale : 1;
-  const collective = (FLIGHT.gravity + command.thrust * FLIGHT.collectiveRange) * loaded;
+  const collective =
+    (FLIGHT.gravity + command.thrust * FLIGHT.collectiveRange * bee.climbMul) * loaded;
 
   velocity.x += scratchUp.x * collective * dt;
   velocity.y += (scratchUp.y * collective - FLIGHT.gravity) * dt;
@@ -167,8 +168,9 @@ function updateVelocity(bee: Bee, command: InputCommand, dt: number): void {
   // Air resistance as exact exponential decay, which is frame-rate independent.
   // Vertical is damped harder than horizontal: a bee falling like a stone is both wrong and
   // unplayable, whereas some horizontal glide is the point of the model.
-  const horizontalDecay = Math.exp(-FLIGHT.horizontalDamping * dt);
-  velocity.y *= Math.exp(-FLIGHT.verticalDamping * dt);
+  // `dragMul` comes from the skill tree: the Sleek node makes the bee keep momentum longer.
+  const horizontalDecay = Math.exp(-FLIGHT.horizontalDamping * bee.dragMul * dt);
+  velocity.y *= Math.exp(-FLIGHT.verticalDamping * bee.dragMul * dt);
   velocity.x *= horizontalDecay;
   velocity.z *= horizontalDecay;
 

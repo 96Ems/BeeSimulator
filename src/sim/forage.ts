@@ -54,14 +54,17 @@ export function updateForaging(state: SimState, dt: number, events: SimEvent[]):
     return;
   }
 
-  bee.forageProgress += dt / type.forageSeconds;
+  bee.forageProgress += (dt / type.forageSeconds) * bee.forageSpeedMul;
 
   if (bee.forageProgress < 1) {
     events.push({ kind: "progress", flowerId: target.id, progress: bee.forageProgress });
     return;
   }
 
-  const gained = Math.min(type.yield, bee.pollenCapacity - bee.pollen);
+  const gained = Math.min(
+    Math.round(type.yield * bee.yieldMul),
+    bee.pollenCapacity - bee.pollen,
+  );
 
   bee.pollen += gained;
   depleteFlower(target);
@@ -70,8 +73,9 @@ export function updateForaging(state: SimState, dt: number, events: SimEvent[]):
 
   // Landing charges a takeoff penalty. This is the entire cost of the high-yield flowers
   // (DESIGN §6.4): the payout is real, and so is the vulnerability immediately after it.
+  // The Firm Grip and Strong Lift nodes shorten it.
   if (type.mode === "land") {
-    bee.takeoffLock = LAND_TAKEOFF_LOCK;
+    bee.takeoffLock = Math.max(0.15, LAND_TAKEOFF_LOCK - bee.takeoffRecovery);
   }
 
   events.push({ kind: "completed", flowerId: target.id, pollen: gained });

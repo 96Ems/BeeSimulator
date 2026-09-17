@@ -14,7 +14,8 @@
     "lint": "eslint .",
     "assets": "node tools/build-assets.mjs",
     "verify": "node tools/verify-assets.mjs",
-    "assets:pull": "node tools/build-assets.mjs --pull-only"
+    "assets:pull": "node tools/build-assets.mjs --pull-only",
+    "check:encoding": "node tools/check-encoding.mjs"
   },
   "keywords": [],
   "author": "",
